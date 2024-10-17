@@ -37,17 +37,34 @@ export default function Home() {
       onClick={handleClick}
       >Search</button>
       
+      {/* {setLists && setLists.length > 0 && (
+  <div className="p-4 flex flex-col w-full gap-4 items-center border border-gray-300 rounded-lg">
+    <h2 className="text-2xl font-bold">Setlists</h2>
+    {setLists.map((setList, index) => (
+      <div key={index} className="w-full border border-gray-300 rounded-lg p-2">
+        
+        {setList.map((track, trackIndex) => (
+          <p key={trackIndex} className="text-lg text-center whitespace-pre-wrap">
+            <strong>{track.timecode}</strong> - {track.trackInfo}
+          </p>
+        ))}
+      </div>
+    ))}
+  </div>
+)} */}
+
       {setLists && setLists.length > 0 && (
   <div className="p-4 flex flex-col w-full gap-4 items-center border border-gray-300 rounded-lg">
     <h2 className="text-2xl font-bold">Setlists</h2>
     {setLists.map((setList, index) => (
       <div key={index} className="w-full border border-gray-300 rounded-lg p-2">
-        {/* Render the entire setList string as a paragraph */}
+        
         <p className="text-lg text-center whitespace-pre-wrap">{setList}</p>
       </div>
     ))}
   </div>
-)}
+)} 
+
       </main>
       <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
         <a

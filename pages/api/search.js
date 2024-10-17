@@ -39,7 +39,7 @@ async function searchYoutube(keywords) {
   async function getVideoIds(keywords) {
     const videoIds = [];
     const API_KEY = process.env.YOUTUBE_API_KEY;
-    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=20&q=${encodeURIComponent(keywords)}&key=${API_KEY}`;
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(keywords)}&key=${API_KEY}`;
   
     try {
       const response = await fetch(searchUrl);
@@ -89,7 +89,7 @@ async function searchYoutube(keywords) {
           
           if (isSetList(topComment)) {
             //setLists.push(getSetList(topComment)); //later to treat the comment and extract set list
-            setLists.push(topComment);
+            setLists.push(extractTracklist(topComment));
           }
         });
   
@@ -128,11 +128,44 @@ async function searchYoutube(keywords) {
     // Return the extracted setlist
     return setList;
   }
+  function extractTracklist(comment) {
+    const trackList = [];
+  //clean the comment
+    // Regex to match timecode and track info
+    //const regex = /(?:<br\s*\/?>){5,}\s*<a href=".*?t=\d+">.*?<\/a>\s*(?:–\s*)?(.*?)(?=<br>|$)/g;
+    //const regex = /(?:<br\s*\/?>){5,}/g;
+    
+      //let match;
+      //while ((match = regex.exec(comment)) !== null) {
+        //const trackInfo = match[1].trim(); // Clean the track info
+        trackList.push(cleanComment(comment)); // Add track info to the list
+     //}
+    
+      return trackList;
+  }
 function isSetList(comment) {
     // Regular expression to match timecode followed by a track name
-    const setListRegex = /(\d{1,2}:\d{2})\s*[-–]\s*(.+?)(?=\n|$)/g;
+    const setListRegex = /(?:<br\s*\/?>){5,}/g;
     const timecodeRegex = /\b\d{1,2}:\d{2}(:\d{2})?\b/g;
     const lineBreakRegex = /(?:.*?\n){7,}/g;
-
-    return lineBreakRegex.test(comment);
+    const tracklistRegex = /\btracklist\b/i; // Detect the word "tracklist"
+    const validTracklistRegex = /(?:.*\s*[-–]\s*.*<br\s*\/?>){2,}/; // At least 2 lines with "track - artist" format
+  
+    // First, check if the comment contains the word "tracklist"
+    if (tracklistRegex.test(comment)) {
+      // Then check if the comment contains at least 2 lines following the "track - artist" pattern
+      return validTracklistRegex.test(comment);
+    }
+  
+    return false; // Return false if it doesn't meet the criteria
+  }
+function cleanComment(comment) {
+    // Replace HTML entities with their corresponding characters
+    return comment
+      .replace(/&amp;/g, '&')
+      .replace(/&#39;/g, '&')
+      .replace(/&gt;/g, '>')
+      .replace(/&lt;/g, '<')
+      .replace(/<br\s*\/?>/gi, '\n') // Replace <br> with newlines for easier reading
+      .replace(/<\/?a[^>]*>/g, ''); // Remove all <a> tags
   }
