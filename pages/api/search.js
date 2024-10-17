@@ -90,6 +90,7 @@ async function searchYoutube(keywords) {
           if (isSetList(topComment)) {
             //setLists.push(getSetList(topComment)); //later to treat the comment and extract set list
             setLists.push(extractTracklist(topComment));
+            
           }
         });
   
