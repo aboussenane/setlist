@@ -67,7 +67,7 @@ export default function Home() {
 {setLists && setLists.length === 0 && (
   <div className="p-4 flex flex-col w-full gap-4 items-center border border-gray-300 rounded-lg">
     <h4 className="text-2xl font-bold">Sorry, no results for that query.</h4>
-    <p className="text-lg text-center">Hint: try something like "2000's club dj set"</p>
+    <p className="text-lg text-center">Hint: try something like &quot;2000&apos;s club dj set&quot;</p>
     
   </div>
 )} 
