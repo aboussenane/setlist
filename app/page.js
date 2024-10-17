@@ -64,7 +64,13 @@ export default function Home() {
     ))}
   </div>
 )} 
-
+{setLists && setLists.length === 0 && (
+  <div className="p-4 flex flex-col w-full gap-4 items-center border border-gray-300 rounded-lg">
+    <h4 className="text-2xl font-bold">Sorry, no results for that query.</h4>
+    <p className="text-lg text-center">Hint: try something like "2000's club dj set"</p>
+    
+  </div>
+)} 
       </main>
       <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
         <a
