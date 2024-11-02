@@ -2,9 +2,16 @@
 import YouTubePlayer from "./components/YoutubePlayer";
 
 import { useState } from "react";
-
+//TODO: Add a loading state
+//TODO: Cache results
+//TODO: Add a refresh button
+//TODO: Add login functionality and usage limits
+//TODO: Push data to database, retrieve from database
+//TODO: Song analysis, ai generation
+//TODO: AI database management
 export default function Home() {
   const [search, setSearch] = useState("");
+  const [prevSearch, setPrevSearch] = useState("");
   const [setLists, setSetLists] = useState([]);
   const [buttonClicked, setButtonClicked] = useState(false);
   const [trackSearch, setTrackSearch] = useState("");
@@ -15,26 +22,71 @@ export default function Home() {
   };
 
   const handleClick = async () => {
-    setButtonClicked(true);
-    if (!search) return;
+    try {
+      console.log('Starting search with query:', search);
+      setButtonClicked(true);
+      
+      if (!search) {
+        console.log('Empty search query, returning early');
+        return;
+      }
+      
+      setPrevSearch(search);
 
+      // Initial search
+      console.log('Attempting initial search...');
+      const initialResult = await searchWithKeywords(search);
+      
+      if (initialResult?.found) {
+        console.log('Found results in initial search:', initialResult.result);
+        setSetLists(initialResult.result);
+        return;
+      }
+
+      // If no results, try with "DJ set"
+      console.log('No initial results, trying with "DJ set"...');
+      const withDjSet = await searchWithKeywords(`${search} DJ set`);
+      if (withDjSet?.found) {
+        console.log('Found results with DJ set:', withDjSet.result);
+        setSetLists(withDjSet.result);
+        return;
+      }
+
+      // If still no results, try with "mix"
+      console.log('No DJ set results, trying with "mix"...');
+      const withMix = await searchWithKeywords(`${search} mix`);
+      if (withMix?.found) {
+        console.log('Found results with mix:', withMix.result);
+        setSetLists(withMix.result);
+        return;
+      }
+
+      // If all searches failed, set empty results
+      console.log('No results found across all search attempts');
+      setSetLists([]);
+      
+    } catch (error) {
+      console.error('Error in handleClick:', error);
+      setSetLists([]); // Reset results on error
+      // Could add error state handling here if needed
+    }
+  };
+  const searchWithKeywords = async (searchTerms) => {
     try {
       const response = await fetch(
-        `/api/search?keywords=${encodeURIComponent(search)}`
+        `/api/search?keywords=${encodeURIComponent(searchTerms)}`
       );
       const data = await response.json();
 
       if (!data.success) {
         console.error("API Error:", data.error);
-        setSetLists([]);
-        return;
+        return null;
       }
 
-      console.log("API Response: ", data);
-      setSetLists(data.found ? data.result : []);
+      return data;
     } catch (error) {
       console.error("Error fetching search result:", error);
-      setSetLists([]);
+      return null;
     }
   };
   const handleTrackSearch = async (artist, songTitle) => {
@@ -54,90 +106,106 @@ export default function Home() {
     }
   };
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
+    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]" role="main">
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
         <h1 className="text-4xl font-bold text-center">Welcome to Setlist</h1>
-        <p>Crowdsource your playlist.</p>
+        <p className="text-lg">Crowdsource your playlist.</p>
 
-        {/* Search Input */}
-        <input
-          className="w-full p-4 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-          placeholder="Enter a few keywords..."
-          value={search}
-          onChange={handleSearch}
-        />
-
-        {/* Search Button */}
-        <button
-          className="p-4 mx-auto text-lg text-black bg-transparent border focus:outline-none hover:ring-black focus:border-black border-gray-300 rounded-lg m-2 hover:bg-gray-50 transition-colors"
-          onClick={handleClick}
+        {/* Search Form */}
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleClick();
+          }}
+          className="w-full flex flex-col gap-4 items-center"
         >
-          Search
-        </button>
+          <label htmlFor="search-input" className="sr-only">
+            Search for setlists
+          </label>
+          <input
+            id="search-input"
+            className="w-full p-4 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+            placeholder="Enter a few keywords..."
+            value={search}
+            onChange={handleSearch}
+            aria-label="Search keywords"
+            type="search"
+          />
+
+          <button
+            type="submit"
+            className="p-4 text-lg text-black bg-transparent border focus:outline-none hover:ring-2 focus:ring-2 hover:ring-black focus:ring-black border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            aria-label="Search for setlists"
+          >
+            Search
+          </button>
+        </form>
 
         {/* Results Section */}
         {buttonClicked && (
-          <>
+          <section aria-label="Search Results" className="w-full">
             {setLists && setLists.length > 0 ? (
               <div className="p-4 flex flex-col w-full gap-4 items-center border border-gray-300 rounded-lg">
                 <h2 className="text-2xl font-bold">Setlists</h2>
+                
                 {/* YouTube Video Player */}
                 {videoId && (
-                  <div className="container mx-auto max-w-3xl mt-8 mb-4">
+                  <div className="container mx-auto max-w-3xl mt-8 mb-4" aria-live="polite">
                     <YouTubePlayer videoId={videoId} />
                   </div>
                 )}
-                {/* Map through each video's setlists */}
-                {setLists.map(({ videoId, tracklists }, index) => (
-                  <div
-                    key={`${videoId}-${index}`}
-                    className="w-full border border-gray-300 rounded-lg p-4"
-                  >
-                    {/* <h3 className="text-xl font-semibold mb-2">
-                      Video ID: {videoId}
-                    </h3> */}
 
-                    {Array.isArray(tracklists) && tracklists.length > 0 ? (
-                      tracklists.map((tracklist, tracklistIndex) => (
-                        <div
-                          key={`${videoId}-${tracklistIndex}`}
-                          className="p-2"
-                        >
-                          {tracklist.map((track, songIndex) => (
-                            <button
-                              key={`${videoId}-${tracklistIndex}-${songIndex}`}
-                              onClick={() =>
-                                handleTrackSearch(track.artist, track.songTitle)
-                              }
-                              className="w-full"
-                            >
-                              <div className="flex items-center gap-2 w-full border border-gray-300 rounded-lg m-2 hover:bg-gray-50 transition-colors">
-                                <p className="text-lg text-center whitespace-pre-wrap m-2">
-                                  {track.artist} - {track.songTitle}
-                                </p>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-gray-500 text-center">
-                        No tracks found in this video
-                      </p>
-                    )}
-                  </div>
-                ))}
+                {/* Setlists List */}
+                <ul className="w-full space-y-4">
+                  {setLists.map(({ videoId, tracklists }, index) => (
+                    <li
+                      key={`${videoId}-${index}`}
+                      className="w-full border border-gray-300 rounded-lg p-4"
+                    >
+                      {Array.isArray(tracklists) && tracklists.length > 0 ? (
+                        tracklists.map((tracklist, tracklistIndex) => (
+                          <ul
+                            key={`${videoId}-${tracklistIndex}`}
+                            className="p-2 space-y-2"
+                          >
+                            {tracklist.map((track, songIndex) => (
+                              <li key={`${videoId}-${tracklistIndex}-${songIndex}`}>
+                                <button
+                                  onClick={() => handleTrackSearch(track.artist, track.songTitle)}
+                                  className="w-full text-left"
+                                  aria-label={`Play ${track.artist} - ${track.songTitle}`}
+                                >
+                                  <div className="flex items-center gap-2 w-full border border-gray-300 rounded-lg m-2 hover:bg-gray-50 transition-colors p-4">
+                                    <span className="text-lg">
+                                      {track.artist} - {track.songTitle}
+                                    </span>
+                                  </div>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-center">
+                          No tracks found in this video
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </div>
             ) : (
-              <div className="p-4 flex flex-col w-full gap-4 items-center border border-gray-300 rounded-lg">
-                <h4 className="text-2xl font-bold">No tracklists found</h4>
+              <div 
+                className="p-4 flex flex-col w-full gap-4 items-center border border-gray-300 rounded-lg"
+                role="alert"
+              >
+                <h2 className="text-2xl font-bold">No tracklists found</h2>
                 <p className="text-lg text-center">
-                  Try searching for something like &quot;2000&apos;s club dj
-                  set&quot; or &quot;festival live set&quot;
+                  No results found for &quot;{prevSearch}&quot;. Try searching for something like &quot;2000&apos;s pop club mix&quot; or &quot;festival live set&quot;
                 </p>
               </div>
             )}
-          </>
+          </section>
         )}
       </main>
     </div>

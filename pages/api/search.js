@@ -131,8 +131,8 @@ async function extractTracklist(comment) {
 
   let match;
   while ((match = regex.exec(comment)) !== null) {
-    const artist = match[1].trim();
-    const songTitle = match[2].trim();
+    const artist = cleanArtistname(match[1].trim());
+    const songTitle = cleanTrackname(match[2].trim());
 
     
 
@@ -166,6 +166,12 @@ function cleanComment(comment) {
     .replace(timecodeRegex, "")
     .replace(tracklistRegex, "")
     .trim();
+}
+function cleanTrackname(trackname) {
+  return trackname.replace(/[^a-zA-Z0-9\s]/g, '');
+}
+function cleanArtistname(artistname) {
+  return artistname.replace(/[^a-zA-Z0-9\s]/g, '');
 }
 function isSetList(comment) {
   const tracklistRegex = /\btracklist\b/i;
