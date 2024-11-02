@@ -1,3 +1,8 @@
+const RATE_LIMIT_DELAY = 100; // milliseconds between API calls
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -11,11 +16,45 @@ export default async function handler(req, res) {
 
   try {
     const scriptResult = await searchYoutube(keywords);
-    return res.status(200).json({ result: scriptResult });
+    
+    // Check if any tracklists were found
+    if (scriptResult.length === 0) {
+      return res.status(200).json({ 
+        success: true,
+        found: false,
+        message: "No tracklists found in video comments",
+        result: [] 
+      });
+    }
+
+    return res.status(200).json({ 
+      success: true,
+      found: true,
+      result: scriptResult 
+    });
   } catch (error) {
     console.error("Error in handler:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
+    return res.status(500).json({ 
+      success: false,
+      error: "Internal Server Error" 
+    });
   }
+}
+async function searchYoutube(keywords) {
+  const videoIds = await getVideoIds(keywords);
+  console.log(videoIds);
+  
+  // Process videos sequentially with delay between each
+  const comments = [];
+  for (const videoId of videoIds) {
+    await delay(RATE_LIMIT_DELAY);
+    const result = await searchComments(videoId);
+    if (result !== null) {
+      comments.push(result);
+    }
+  }
+
+  return comments;
 }
 // Fetch video IDs from YouTube API based on search keywords
 async function getVideoIds(keywords) {
@@ -36,58 +75,57 @@ async function getVideoIds(keywords) {
     return [];
   }
 }
-// Fetch comments from YouTube for each video and extract tracklists
-async function searchYoutube(keywords) {
-  const videoIds = await getVideoIds(keywords);
 
-  // Use Promise.all to fetch comments for all video IDs in parallel
-  const comments = (await Promise.all(videoIds.map(searchComments))).filter(
-    (item) => item !== null
-  ); // Filter out null results
-
-  return comments;
-}
 // Search for comments in a YouTube video, extracting setlists if they exist
 async function searchComments(videoId) {
   const API_KEY = process.env.YOUTUBE_API_KEY;
-  const commentUrl = `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&maxResults=25&key=${API_KEY}`;
+  const commentUrl = `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&maxResults=15&key=${API_KEY}`;
   const tracklistsForVideo = [];
 
   try {
-    let nextPageToken = "";
-    let fetchUrl = commentUrl;
+    const response = await fetch(commentUrl);
+    if (response.status === 403) {
+      console.error("API Key authentication failed or quota exceeded");
+      throw new Error("YouTube API authentication failed");
+    }
+    if (response.status === 304) {
+      console.error("Repeated request");
+      throw new Error("Repeated request");
+    }
+    if (!response.ok) {
+      console.error(`YouTube API Error: ${response.status} - ${response.statusText}`);
+      const errorData = await response.json();
+      console.error("Error details:", errorData);
+      throw new Error(`Failed to fetch comments: ${response.statusText}`);
+    }
 
+    const data = await response.json();
     
-      const response = await fetch(fetchUrl);
-      if (!response.ok)
-        throw new Error(`Failed to fetch comments: ${response.statusText}`);
-
-      const data = await response.json();
-
-      data.items.forEach(async (item) => {
-        const topComment = item.snippet.topLevelComment.snippet.textDisplay;
-
-        if (isSetList(topComment)) {
-          const tracklist = await extractTracklist(topComment); // Await YouTube search for each track
-
-          if (tracklist) {
-            tracklistsForVideo.push(tracklist);
-          }
+    // Use Promise.all to properly wait for all comment processing
+    await Promise.all(data.items.map(async (item) => {
+      const topComment = item.snippet.topLevelComment.snippet.textDisplay;
+      console.log(topComment);
+      if (isSetList(topComment)) {
+        const tracklist = await extractTracklist(topComment);
+        console.log("tracklist", tracklist);
+        if (tracklist) {
+          tracklistsForVideo.push(tracklist);
         }
-      });
+      }
+    }));
 
-      
   } catch (error) {
     console.error("Error fetching comments:", error);
+    throw error; // Re-throw to handle it in the calling function
   }
 
-  return tracklistsForVideo.length > 0 ? [videoId, tracklistsForVideo] : null;
+  return tracklistsForVideo.length > 0 ?  { videoId, tracklists: tracklistsForVideo } : null;
 }
 // Function to extract tracklist from a comment and search for each track on YouTube
 async function extractTracklist(comment) {
   const trackList = [];
   comment = cleanComment(comment);
-
+  console.log(comment);
   // Regular expression to capture artist and song title
   const regex = /^(.*?)\s*-\s*(.*?)\s*(?:\[\d{4}\])?$/gm; // Global match to capture all lines
 
@@ -131,7 +169,9 @@ function cleanComment(comment) {
 }
 function isSetList(comment) {
   const tracklistRegex = /\btracklist\b/i;
+  const tracklistRegex2 = /\btrack list\b/i;
+  const timestampslistRegex = /\btimestamps\b/i;
   const validTracklistRegex = /(?:.*\s*[-–]\s*.*<br\s*\/?>){2,}/;
 
-  return tracklistRegex.test(comment) && validTracklistRegex.test(comment);
+  return (tracklistRegex.test(comment) || tracklistRegex2.test(comment))&& validTracklistRegex.test(comment);
 }

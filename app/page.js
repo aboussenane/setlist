@@ -1,6 +1,6 @@
 "use client";
+import YouTubePlayer from "./components/YoutubePlayer";
 
-import Image from "next/image";
 import { useState } from "react";
 
 export default function Home() {
@@ -8,9 +8,8 @@ export default function Home() {
   const [setLists, setSetLists] = useState([]);
   const [buttonClicked, setButtonClicked] = useState(false);
   const [trackSearch, setTrackSearch] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
+  const [videoId, setVideoId] = useState("");
 
-  
   const handleSearch = (e) => {
     setSearch(e.target.value); // Update search state with user input
   };
@@ -19,24 +18,37 @@ export default function Home() {
     setButtonClicked(true);
     if (!search) return;
 
-    // Fetch the search result from the API
     try {
-      const response = await fetch(`/api/search?keywords=${encodeURIComponent(search)}`);
+      const response = await fetch(
+        `/api/search?keywords=${encodeURIComponent(search)}`
+      );
       const data = await response.json();
-      console.log("API Response: ", data.result);
-      setSetLists(data.result);
+
+      if (!data.success) {
+        console.error("API Error:", data.error);
+        setSetLists([]);
+        return;
+      }
+
+      console.log("API Response: ", data);
+      setSetLists(data.found ? data.result : []);
     } catch (error) {
       console.error("Error fetching search result:", error);
+      setSetLists([]);
     }
   };
   const handleTrackSearch = async (artist, songTitle) => {
     setTrackSearch(`${artist} ${songTitle}`);
     // Fetch the YouTube video from the API
     try {
-      const response = await fetch(`/api/searchTrack?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(songTitle)}`);
+      const response = await fetch(
+        `/api/searchTrack?artist=${encodeURIComponent(
+          artist
+        )}&song=${encodeURIComponent(songTitle)}`
+      );
       const data = await response.json();
-      console.log("YouTube API Response: ", data.videoUrl);
-      setVideoUrl(data.videoUrl); // Store video URL to display it
+      console.log("YouTube API Response: ", data.videoId);
+      setVideoId(data.videoId); // Store video URL to display it
     } catch (error) {
       console.error("Error fetching track result:", error);
     }
@@ -44,79 +56,95 @@ export default function Home() {
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-      <h1 className="text-4xl font-bold text-center">Welcome to Setlist</h1>
-      <p>Crowdsource your playlist.</p>
-      <input className="w-full p-4 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent" placeholder="Enter a few keywords..." 
-         value={search}
-         onChange={handleSearch}
-      />
-      <button className="p-4 text-lg text-black bg-transparent rounded-lg border border-gray-300 focus:outline-none hover:ring-black focus:border-black"
-      onClick={handleClick}
-      >Search</button>
-      
- 
+        <h1 className="text-4xl font-bold text-center">Welcome to Setlist</h1>
+        <p>Crowdsource your playlist.</p>
 
-      {setLists && setLists.length > 0 && (
-  <div className="p-4 flex flex-col w-full gap-4 items-center border border-gray-300 rounded-lg">
-    <h2 className="text-2xl font-bold">Setlists</h2>
+        {/* Search Input */}
+        <input
+          className="w-full p-4 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+          placeholder="Enter a few keywords..."
+          value={search}
+          onChange={handleSearch}
+        />
 
-    {/* Iterate over each [videoID, tracklist[]] pair */}
-    {setLists.map(([videoId, tracklists], index) => (
-      <div key={index} className="w-full border border-gray-300 rounded-lg p-4">
-        {/* Display the videoID */}
-        <h3 className="text-xl font-semibold mb-2">Original Video ID: {videoId}</h3>
+        {/* Search Button */}
+        <button
+          className="p-4 mx-auto text-lg text-black bg-transparent border focus:outline-none hover:ring-black focus:border-black border-gray-300 rounded-lg m-2 hover:bg-gray-50 transition-colors"
+          onClick={handleClick}
+        >
+          Search
+        </button>
 
-        {/* Ensure tracklists is an array before mapping */}
-        {Array.isArray(tracklists) && tracklists.length > 0 ? (
-          tracklists.map((tracklist, tracklistIndex) => (
-            <div key={tracklistIndex} className="p-2">
-              {/* Iterate over each track in the tracklist */}
-              {tracklist.map((track, songIndex) => (
-                <button key={songIndex} onClick={() => handleTrackSearch(track.artist, track.songTitle)}> 
+        {/* Results Section */}
+        {buttonClicked && (
+          <>
+            {setLists && setLists.length > 0 ? (
+              <div className="p-4 flex flex-col w-full gap-4 items-center border border-gray-300 rounded-lg">
+                <h2 className="text-2xl font-bold">Setlists</h2>
+                {/* YouTube Video Player */}
+                {videoId && (
+                  <div className="container mx-auto max-w-3xl mt-8 mb-4">
+                    <YouTubePlayer videoId={videoId} />
+                  </div>
+                )}
+                {/* Map through each video's setlists */}
+                {setLists.map(({ videoId, tracklists }, index) => (
+                  <div
+                    key={`${videoId}-${index}`}
+                    className="w-full border border-gray-300 rounded-lg p-4"
+                  >
+                    {/* <h3 className="text-xl font-semibold mb-2">
+                      Video ID: {videoId}
+                    </h3> */}
 
-               
-                <div className="flex items-center gap-2 w-full border border-gray-300 rounded-lg m-2 ">
-                <p  onChange={handleTrackSearch} className=" text-lg text-center whitespace-pre-wrap m-2 ">
-                  {/* Display the video ID, artist, and song title */}
-                  {track.artist} - {track.songTitle}
+                    {Array.isArray(tracklists) && tracklists.length > 0 ? (
+                      tracklists.map((tracklist, tracklistIndex) => (
+                        <div
+                          key={`${videoId}-${tracklistIndex}`}
+                          className="p-2"
+                        >
+                          {tracklist.map((track, songIndex) => (
+                            <button
+                              key={`${videoId}-${tracklistIndex}-${songIndex}`}
+                              onClick={() =>
+                                handleTrackSearch(track.artist, track.songTitle)
+                              }
+                              className="w-full"
+                            >
+                              <div className="flex items-center gap-2 w-full border border-gray-300 rounded-lg m-2 hover:bg-gray-50 transition-colors">
+                                <p className="text-lg text-center whitespace-pre-wrap m-2">
+                                  {track.artist} - {track.songTitle}
+                                </p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500 text-center">
+                        No tracks found in this video
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 flex flex-col w-full gap-4 items-center border border-gray-300 rounded-lg">
+                <h4 className="text-2xl font-bold">No tracklists found</h4>
+                <p className="text-lg text-center">
+                  Try searching for something like &quot;2000&apos;s club dj
+                  set&quot; or &quot;festival live set&quot;
                 </p>
-                </div>
-                </button >
-              ))}
-            </div>
-          ))
-        ) : (
-          <p className="text-lg text-center text-gray-500">No song info available</p>
-        )}
-      </div>
-    ))}
-  </div>
-)}
-
-
-{/* {buttonClicked && setLists.length === 0 && (
-  <div className="p-4 flex flex-col w-full gap-4 items-center border border-gray-300 rounded-lg">
-    <h4 className="text-2xl font-bold">Sorry, no results for that query.</h4>
-    <p className="text-lg text-center">Hint: try something like &quot;2000&apos;s club dj set&quot;</p>
-    
-  </div>
-)}  */}
-{videoUrl && (
-          <div className="w-full mt-8">
-            <iframe
-              width="560"
-              height="315"
-              src={`https://www.youtube.com/embed/${videoUrl}`}
-              title="YouTube video player"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              referrerpolicy="strict-origin-when-cross-origin" 
-              allowFullScreen
-            ></iframe>
-          </div>
+              </div>
+            )}
+          </>
         )}
       </main>
-      {/* <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
+    </div>
+  );
+}
+{
+  /* <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
         <a
           className="flex items-center gap-2 hover:underline hover:underline-offset-4"
           href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
@@ -162,7 +190,5 @@ export default function Home() {
           />
           Go to nextjs.org →
         </a>
-      </footer> */}
-    </div>
-  );
+      </footer> */
 }

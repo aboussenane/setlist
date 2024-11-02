@@ -1,28 +1,44 @@
+// import LRU from 'lru-cache';
+
+// // Configure the rate limiter
+// const rateLimitOptions = {
+//   max: 100, // Maximum number of requests
+//   ttl: 60 * 1000, // Time-to-live (in milliseconds) - 1 minute
+// };
+// const rateLimiter = new LRU(rateLimitOptions);
+
 export default async function handler(req, res) {
-    const { artist, song } = req.query;
-  
-    // Validate the query parameters
-    if (!artist || !song) {
-      return res.status(400).json({ error: 'Missing artist or song parameters' });
-    }
-  
-    try {
-      // Search YouTube for the track
-      const videoId = await searchYoutubeForTrack(artist, song);
-  
-      // If a video ID was found, return it
-      if (videoId) {
-        return res.status(200).json({ videoUrl: `https://www.youtube.com/embed/${videoId}` });
-      } else {
-        // If no video was found, return a message
-        return res.status(404).json({ error: `No video found for ${artist} - ${song}` });
-      }
-    } catch (error) {
-      // Handle any errors
-      console.error('Error in searchTrack API:', error);
-      return res.status(500).json({ error: 'Internal server error' });
-    }
+  const { artist, song } = req.query;
+
+  // // Check if the client IP is rate limited
+  // const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  // const requestCount = rateLimiter.get(clientIp) || 0;
+
+  // if (requestCount >= rateLimitOptions.max) {
+  //   return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+  // }
+
+  // // Increment the request count
+  // rateLimiter.set(clientIp, requestCount + 1);
+
+
+  if (!artist || !song) {
+    return res.status(400).json({ error: 'Missing artist or song parameters' });
   }
+
+  try {
+    const videoId = await searchYoutubeForTrack(artist, song);
+
+    if (videoId) {
+      return res.status(200).json({ videoId });
+    } else {
+      return res.status(404).json({ error: `No video found for ${artist} - ${song}` });
+    }
+  } catch (error) {
+    console.error('Error in searchTrack API:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
 
   export async function searchYoutubeForTrack(artist, songTitle) {
     const API_KEY = process.env.YOUTUBE_API_KEY;
