@@ -150,7 +150,7 @@ export default function Home() {
               aria-label="I'm feeling lucky..."
               onClick={getLucky}
             >
-              I'm feeling lucky...
+              I&apos;m feeling lucky...
             </button>
           </div>
 
@@ -217,7 +217,7 @@ export default function Home() {
               >
                 <h2 className="text-xl sm:text-2xl font-bold">No tracklists found</h2>
                 <p className="text-sm sm:text-base lg:text-lg text-center">
-                  No results found for &quot;{prevSearch}&quot;. Try again, it may take a few tries to find what you&quot;re looking for. <br/>
+                  No results found for &quot;{prevSearch}&quot;. Try again, it may take a few tries to find what you&apos;re looking for. <br/>
                 </p>
               </div>
             )}
